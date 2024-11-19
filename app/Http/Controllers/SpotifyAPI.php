@@ -3,27 +3,45 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Cache;
 
 class SpotifyAPI extends Controller
 {
-    public function index(){
+    /**
+     * Get a Spotify access token using client credentials flow.
+     * The token is cached for 3600 seconds (1 hour) to avoid making unnecessary requests.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getToken()
+    {
+        // Try to get the token from cache first
+        $cachedToken = Cache::get('spotify_token');
+        if ($cachedToken) {
+            return response()->json(['access_token' => $cachedToken]);
+        }
+
         $clientId = env('SPOTIFY_CLIENT_ID');
         $clientSecret = env('SPOTIFY_SECRET');
-        $authUrl = 'https://accounts.spotify.com/api/token';
-        $credentials = base64_encode("{$clientId}:{$clientSecret}");
-        $response = json_decode(file_get_contents($authUrl, false, stream_context_create([
-            'http' => [
-                'method' => 'POST',
-                'header' => [
-                    'Authorization: Basic ' . $credentials,
-                    'Content-Type: application/x-www-form-urlencoded'
-                ],
-                'content' => http_build_query([
-                    'grant_type' => 'client_credentials'
-                ])
-            ]
-        ])));
         
-        return json_encode($response);
+        try {
+            $response = Http::asForm()
+                ->withBasicAuth($clientId, $clientSecret)
+                ->post('https://accounts.spotify.com/api/token', [
+                    'grant_type' => 'client_credentials'
+                ]);
+
+            if ($response->successful()) {
+                $data = $response->json();
+                // Cache the token for slightly less than its expiry time (3600 seconds)
+                Cache::put('spotify_token', $data['access_token'], 3500);
+                return response()->json(['access_token' => $data['access_token']]);
+            }
+
+            return response()->json(['error' => 'Failed to get Spotify token'], 500);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Failed to connect to Spotify API'], 500);
+        }
     }
 }

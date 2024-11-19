@@ -1,7 +1,8 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head } from '@inertiajs/react';
 import CameraDisplay from '@/Components/CameraDisplay';
-import { useState } from 'react';
+import SuggestedPlaylist from '@/Components/SuggestedPlaylist';
+import { useState, useEffect } from 'react';
 
 /**
  * Dashboard component that integrates mood detection camera functionality.
@@ -21,6 +22,34 @@ export default function Dashboard() {
     const [mood, setMood] = useState(null);
     const [isProcessing, setIsProcessing] = useState(false);
     const [error, setError] = useState(null);
+    const [spotifyToken, setSpotifyToken] = useState(null);
+
+    // Map moods to music genres
+    const moodToGenres = {
+        'happy': ['happy', 'pop', 'dance'],
+        'sad': ['sad', 'acoustic', 'indie'],
+        'angry': ['metal', 'rock', 'intense'],
+        'neutral': ['ambient', 'chill', 'electronic'],
+        'surprised': ['upbeat', 'energetic', 'edm'],
+        'fearful': ['calm', 'meditation', 'classical'],
+        'disgusted': ['punk', 'alternative', 'grunge']
+    };
+
+    useEffect(() => {
+        // Fetch Spotify token when component mounts
+        const getSpotifyToken = async () => {
+            try {
+                const response = await fetch('/spotify/token');
+                const data = await response.json();
+                setSpotifyToken(data.access_token);
+            } catch (err) {
+                console.error('Error fetching Spotify token:', err);
+                setError('Failed to connect to Spotify. Please try again.');
+            }
+        };
+
+        getSpotifyToken();
+    }, []);
 
     /**
      * Handles the snapshot taken from the camera and sends it to the Python backend
@@ -110,6 +139,15 @@ export default function Dashboard() {
                                     </div>
                                 </div>
                             </div>
+                            {mood && spotifyToken && (
+                                <div className="mt-8">
+                                    <SuggestedPlaylist 
+                                        emotion={moodToGenres[mood.toLowerCase()] || ['pop', 'indie', 'electronic']} 
+                                        accessKey={spotifyToken}
+                                        currentMood={mood} 
+                                    />
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
