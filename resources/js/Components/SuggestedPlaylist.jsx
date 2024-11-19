@@ -62,13 +62,14 @@ export default function SuggestedPlaylist({ emotion = [], accessKey = "", curren
         setIsLoading(true);
         const query = emotion.join("&genre:");
         try {
-            const response = await axios.get(`https://api.spotify.com/v1/search?q=genre:${query}&type=playlist&limit=50&offset=${offset}`, {
+            const response = await fetch(`https://api.spotify.com/v1/search?q=genre:${query}&type=playlist&limit=50&offset=${offset}`, {
                 headers: {
                     Authorization: `Bearer ${accessKey}`,
                 },
             });
+            const jsonData = await response.json();
             setItems(
-                response.data.playlists.items.sort(() => 0.5 - Math.random()).slice(0, 3)
+                jsonData.playlists.items.sort(() => 0.5 - Math.random()).slice(0, 3)
             );
         } catch (error) {
             console.error('Error fetching playlists:', error);
