@@ -2,7 +2,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head } from '@inertiajs/react';
 import CameraDisplay from '@/Components/CameraDisplay';
 import SuggestedPlaylist from '@/Components/SuggestedPlaylist';
-import { useState, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 
 /**
  * Dashboard component that integrates mood detection camera functionality.
@@ -23,6 +23,39 @@ export default function Dashboard() {
     const [isProcessing, setIsProcessing] = useState(false);
     const [error, setError] = useState(null);
     const [spotifyToken, setSpotifyToken] = useState(null);
+    const [selectedFile, setSelectedFile] = useState(null);
+
+    const handleFileChange = (event) => {
+        console.log(event.target.files[0]);
+        setSelectedFile(event.target.files[0]);
+    }
+
+    const handleUpload = () => {
+        if (selectedFile) {
+            setIsProcessing(true);
+            setError(null);
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+
+            fetch('http://127.0.0.1:6969/predict', {
+                method: 'POST',
+                body: formData,
+            })
+            .then(response => response.json())
+            .then(data => {
+                setMood(data.result);
+            })
+            .catch(error => {
+                console.error('Error sending file:', error);
+                setError('Failed to analyze mood. Please try again.');
+            })
+            .finally(() => {
+                setIsProcessing(false);
+            });
+        }
+    }
+
+
 
     // Map moods to music genres
     const moodToGenres = {
@@ -87,6 +120,10 @@ export default function Dashboard() {
         }
     };
 
+
+
+
+
     return (
         <AuthenticatedLayout
             header={
@@ -96,7 +133,6 @@ export default function Dashboard() {
             }
         >
             <Head title="Dashboard" />
-
             <div className="py-12">
                 <div className="mx-auto max-w-7xl sm:px-6 lg:px-8">
                     <div className="overflow-hidden bg-white shadow-sm sm:rounded-lg dark:bg-gray-800">
@@ -106,6 +142,21 @@ export default function Dashboard() {
                                     <h3 className="text-lg font-medium">Mood Detection Camera</h3>
                                     <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
                                         <CameraDisplay onSnapshot={handleSnapshot} />
+                                    </div>
+                                    <div className="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
+                                        <label htmlFor="file-picker" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                            Or select a file from your computer
+                                        </label>
+                                        <input
+                                            id="file-picker"
+                                            type="file"
+                                            className="block text-sm text-gray-900 bg-gray-50 rounded-lg border border-gray-300 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
+                                            accept=".png, .jpg, .jpeg"
+                                            onChange={handleFileChange}
+                                        />
+                                        <button onClick={handleUpload}>
+                                            Upload
+                                        </button>
                                     </div>
                                 </div>
                                 <div className="space-y-4">
