@@ -2,20 +2,10 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head } from '@inertiajs/react';
 import CameraDisplay from '@/Components/CameraDisplay';
 import SuggestedPlaylist from '@/Components/SuggestedPlaylist';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 
 /**
- * Dashboard component that integrates mood detection camera functionality.
- * This component provides a user interface for capturing photos and analyzing moods
- * using the Python FastAPI backend.
- * 
- * @component
- * @returns {JSX.Element} A dashboard interface with camera display and mood analysis
- * 
- * @example
- * ```jsx
- * <Dashboard />
- * ```
+ * Enhanced Dashboard with a dark, Spotify-inspired aesthetic.
  */
 export default function Dashboard() {
     const [lastSnapshot, setLastSnapshot] = useState(null);
@@ -25,58 +15,31 @@ export default function Dashboard() {
     const [spotifyToken, setSpotifyToken] = useState(null);
     const [selectedFile, setSelectedFile] = useState(null);
 
-    const handleFileChange = (event) => {
-        console.log(event.target.files[0]);
-        setSelectedFile(event.target.files[0]);
-    }
+    const handleFileChange = (event) => setSelectedFile(event.target.files[0]);
 
     const handleUpload = () => {
         if (selectedFile) {
             setIsProcessing(true);
             setError(null);
+
             const formData = new FormData();
             formData.append('file', selectedFile);
 
-            fetch('http://127.0.0.1:6969/predict', {
-                method: 'POST',
-                body: formData,
-            })
-            .then(response => response.json())
-            .then(data => {
-                setMood(data.result);
-            })
-            .catch(error => {
-                console.error('Error sending file:', error);
-                setError('Failed to analyze mood. Please try again.');
-            })
-            .finally(() => {
-                setIsProcessing(false);
-            });
+            fetch('http://127.0.0.1:6969/predict', { method: 'POST', body: formData })
+                .then(response => response.json())
+                .then(data => setMood(data.result))
+                .catch(() => setError('Failed to analyze mood. Please try again.'))
+                .finally(() => setIsProcessing(false));
         }
-    }
-
-
-
-    // Map moods to music genres
-    const moodToGenres = {
-        'happy': ['happy', 'pop', 'dance'],
-        'sad': ['sad', 'acoustic', 'indie'],
-        'angry': ['metal', 'rock', 'intense'],
-        'neutral': ['ambient', 'chill', 'electronic'],
-        'surprised': ['upbeat', 'energetic', 'edm'],
-        'fearful': ['calm', 'meditation', 'classical'],
-        'disgusted': ['punk', 'alternative', 'grunge']
     };
-
+                                
     useEffect(() => {
-        // Fetch Spotify token when component mounts
         const getSpotifyToken = async () => {
             try {
                 const response = await fetch('/spotify/token');
                 const data = await response.json();
                 setSpotifyToken(data.access_token);
-            } catch (err) {
-                console.error('Error fetching Spotify token:', err);
+            } catch {
                 setError('Failed to connect to Spotify. Please try again.');
             }
         };
@@ -84,122 +47,88 @@ export default function Dashboard() {
         getSpotifyToken();
     }, []);
 
-    /**
-     * Handles the snapshot taken from the camera and sends it to the Python backend
-     * for mood analysis.
-     * 
-     * @async
-     * @param {File} snapshotFile - The image file captured from the camera
-     * @throws {Error} When the API request fails or returns an error status
-     */
-    const handleSnapshot = async (snapshotFile) => {
-        setLastSnapshot(snapshotFile);
-        setIsProcessing(true);
-        setError(null);
-
-        try {
-            const formData = new FormData();
-            formData.append('file', snapshotFile);
-
-            const response = await fetch('http://127.0.0.1:6969/predict', {
-                method: 'POST',
-                body: formData,
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            const data = await response.json();
-            setMood(data.result);
-        } catch (err) {
-            console.error('Error sending snapshot:', err);
-            setError('Failed to analyze mood. Please try again.');
-        } finally {
-            setIsProcessing(false);
-        }
+    const moodToGenres = {
+        happy: ['happy', 'pop', 'dance'],
+        sad: ['sad', 'acoustic', 'indie'],
+        angry: ['metal', 'rock', 'intense'],
+        neutral: ['ambient', 'chill', 'electronic'],
+        surprised: ['upbeat', 'energetic', 'edm'],
+        fearful: ['calm', 'meditation', 'classical'],
+        disgusted: ['punk', 'alternative', 'grunge'],
     };
-
-
-
-
 
     return (
         <AuthenticatedLayout
             header={
-                <h2 className="text-xl font-semibold leading-tight text-gray-800 dark:text-gray-200">
-                    Dashboard
-                </h2>
+                <h2 className="text-3xl font-extrabold text-gray-900"> </h2>
             }
         >
             <Head title="Dashboard" />
-            <div className="py-12">
+            <div className="py-12 bg-gradient-to-b from-black via-gray-900 to-black min-h-screen">
                 <div className="mx-auto max-w-7xl sm:px-6 lg:px-8">
-                    <div className="overflow-hidden bg-white shadow-sm sm:rounded-lg dark:bg-gray-800">
-                        <div className="p-6 text-gray-900 dark:text-gray-100">
-                            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                                <div className="space-y-4">
-                                    <h3 className="text-lg font-medium">Mood Detection Camera</h3>
-                                    <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
-                                        <CameraDisplay onSnapshot={handleSnapshot} />
-                                    </div>
-                                    <div className="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
-                                        <label htmlFor="file-picker" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                            Or select a file from your computer
-                                        </label>
-                                        <input
-                                            id="file-picker"
-                                            type="file"
-                                            className="block text-sm text-gray-900 bg-gray-50 rounded-lg border border-gray-300 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
-                                            accept=".png, .jpg, .jpeg"
-                                            onChange={handleFileChange}
-                                        />
-                                        <button onClick={handleUpload}>
-                                            Upload
-                                        </button>
-                                    </div>
+                    <div className="p-8 rounded-xl shadow-lg bg-black">
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                            {/* Left Section */}
+                            <div className="space-y-8">
+                                <h3 className="text-2xl font-semibold text-green-500">Mood Detection Camera</h3>
+                                <div className="rounded-lg overflow-hidden border border-gray-800 bg-gray-900">
+                                    <CameraDisplay onSnapshot={setLastSnapshot} />
                                 </div>
-                                <div className="space-y-4">
-                                    <h3 className="text-lg font-medium">Mood Analysis</h3>
-                                    <div className="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
-                                        {(() => {
-                                            let content;
-                                            if (error) {
-                                                content = <p className="text-red-500">{error}</p>;
-                                            } else if (isProcessing) {
-                                                content = (
-                                                    <div className="flex items-center space-x-2">
-                                                        <svg className="h-5 w-5 animate-spin text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                                        </svg>
-                                                        <p>Processing your mood...</p>
-                                                    </div>
-                                                );
-                                            } else if (mood) {
-                                                content = (
-                                                    <div>
-                                                        <p className="text-lg font-medium">Detected Mood: <span className="capitalize text-blue-500">{mood}</span></p>
-                                                    </div>
-                                                );
-                                            } else {
-                                                content = <p>Take a snapshot to analyze your mood</p>;
-                                            }
-                                            return content;
-                                        })()}
-                                    </div>
+                                <div className="p-6 rounded-lg bg-gray-800">
+                                    <label
+                                        htmlFor="file-picker"
+                                        className="block text-sm font-medium text-gray-300 mb-3"
+                                    >
+                                        Or upload a photo
+                                    </label>
+                                    <input
+                                        id="file-picker"
+                                        type="file"
+                                        className="block w-full px-4 py-2 text-sm bg-black rounded-lg text-gray-300 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 border border-gray-700"
+                                        accept=".png, .jpg, .jpeg"
+                                        onChange={handleFileChange}
+                                    />
+                                    <button
+                                        onClick={handleUpload}
+                                        className="mt-4 w-full py-2 text-sm font-bold bg-green-500 text-black rounded-lg hover:bg-green-600 transition duration-200"
+                                    >
+                                        Analyze Mood
+                                    </button>
                                 </div>
                             </div>
-                            {mood && spotifyToken && (
-                                <div className="mt-8">
-                                    <SuggestedPlaylist 
-                                        emotion={moodToGenres[mood.toLowerCase()] || ['pop', 'indie', 'electronic']} 
-                                        accessKey={spotifyToken}
-                                        currentMood={mood} 
-                                    />
+
+                            {/* Right Section */}
+                            <div className="space-y-8">
+                                <h3 className="text-2xl font-semibold text-green-500">Mood Analysis</h3>
+                                <div className="p-6 rounded-lg bg-gray-800">
+                                    {isProcessing ? (
+                                        <p className="text-green-400">Analyzing your mood...</p>
+                                    ) : mood ? (
+                                        <p className="text-lg font-semibold text-gray-200">
+                                            Detected Mood:{" "}
+                                            <span className="text-green-500 capitalize">{mood}</span>
+                                        </p>
+                                    ) : (
+                                        <p className="text-gray-400">Take a snapshot or upload a photo to analyze your mood.</p>
+                                    )}
+                                    {error && <p className="text-red-500 mt-3">{error}</p>}
                                 </div>
-                            )}
+                            </div>
                         </div>
+
+                        {/* Suggested Playlist */}
+                        {mood && spotifyToken && (
+                            <div className="mt-10">
+                                <h3 className="text-2xl font-semibold text-green-500 mb-4">
+                                    Suggested Playlist
+                                </h3>
+                                <SuggestedPlaylist
+                                    emotion={moodToGenres[mood.toLowerCase()] || ['pop', 'indie', 'electronic']}
+                                    accessKey={spotifyToken}
+                                    currentMood={mood}
+                                />
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
